@@ -1,2 +1,6 @@
 *.pyc
 *.pyo
+'__pycache__
+/__pycache/*
+models/ATPDrain/.___pycache__
+/.___pycache__

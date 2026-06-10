@@ -177,8 +177,9 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["M_transporter"],
                     k_cat=kcat_transport_dict["kcat_M"],
+                    k_ms=Km_C_dict
                 ),
-                k_ms=Km_C_dict
+                
             ),
             "Transport_C": Reaction(
                 stoichiometries={
@@ -191,8 +192,9 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["C_transporter"],
                     k_cat=kcat_transport_dict["kcat_C"],
+                    k_ms=Km_C_dict
                 ),
-                k_ms=Km_C_dict
+                
             ),
             #
             
@@ -218,8 +220,9 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["ATP_transporter"],
                     k_cat=kcat_transport_dict["kcat_ATP"],
+                    k_ms=Km_ATP_dict
                 ),
-                k_ms=Km_ATP_dict
+                
             ),
 
             "Transport_ATP_back": Reaction(
@@ -233,8 +236,9 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["ATP_transporter"],
                     k_cat=kcat_transport_dict["kcat_ATP"],
+                    k_ms=Km_ATP_dict
                 ),
-                k_ms=Km_ATP_dict
+                
             ),
 
             "Transport_ADP": Reaction(
@@ -248,8 +252,9 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["ADP_transporter"],
                     k_cat=kcat_transport_dict["kcat_ADP"],
+                    k_ms=Km_ADP_dict
                 ),
-                k_ms=Km_ADP_dict
+                
             ),
 
             "Transport_ADP_back": Reaction(
@@ -263,8 +268,9 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["ADP_transporter"],
                     k_cat=kcat_transport_dict["kcat_ADP"],
+                    k_ms=Km_ADP_dict
                 ),
-                k_ms=Km_ADP_dict
+                
             ),
             
 

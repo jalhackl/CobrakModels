@@ -1,5 +1,6 @@
 # IMPORT SECTION
 from math import log
+import re
 
 from cobrak.constants import STANDARD_R, STANDARD_T
 from cobrak.dataclasses import (
@@ -13,81 +14,56 @@ from cobrak.dataclasses import (
 
 
 
-def initialize_model_w_comp(k_cat_glycolysis=140_000, 
+def initialize_model_wo_comp(k_cat_glycolysis=140_000, 
                                     k_cat_respiration=140_000,
                                     k_cat_overflow=140_000,
-                                    k_cat_transport=140_000,
-
-                                    #k_cat_transport=140_000,
                                     k_cat_biomass=142,
                                     biomass_atp=4,
                                     biomass_enzyme_W=1500,
-
-
-                                    M_transporter_enzyme_W=50,
-                                    C_transporter_enzyme_W=50,
-                                    ATP_transporter_enzyme_W=50,
-                                    ADP_transporter_enzyme_W=50,
-
-                                    atp_concentration_constraint=False,
-                                    atp_m_concentration_constraint=False,
-                                    
-                                    #transporter K kcat
-                                    kcat_transport_dict = None,
-                                    Km_M_dict =None, Km_C_dict =None,  Km_ATP_dict =None, Km_ADP_dict =None, 
                                     Km_Biomass_dict = None,
+                                    atp_concentration_constraint=False,
+                                    
                                     glycolysis_enzyme_W=1000,
                                     respiration_enzyme_W=2500,
                                     overflow_enzyme_W=500,
-
-                                    biomass_dG0=0
-
-                                    ):
+                                    
+                                    biomass_dG0=0,
+                                    
+                                    Km_Glycolysis_dict=None,
+                                    Km_Overflow_dict=None,
+                                    Km_Respiration_dict=None,
+                                    
+                                    remove_compartment_info=True):
     
-    kcat_transport_default_value = 1e20
-    #if isinstance(k_cat_transport, int):
-    if k_cat_transport is not None:
-        kcat_transport_default_value = k_cat_transport
-
-    if not kcat_transport_dict:
-        kcat_transport_dict = {"kcat_M": None, "kcat_C": None, "kcat_ATP":None, "kcat_ADP":None}
-
-        for key, value in kcat_transport_dict.items():
-            if value is None:
-                kcat_transport_dict[key] = kcat_transport_default_value
-
-
-
-
-    if not Km_M_dict:
-        Km_M_dict={}
-
-    if not Km_C_dict:
-        Km_C_dict={}
-
-    if not Km_ATP_dict:
-        Km_ATP_dict={}
-
-    if not Km_ADP_dict:
-        Km_ADP_dict={}
-
     if not Km_Biomass_dict:
-        Km_Biomass_dict={  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
-                        "B": 0.0001,  
-                        "ADP": 0.0001,
-                        "M": 0.0001,
-                        "ATP": 0.0001,
-                    }
-        
+        Km_Biomass_dict={  
+        }
 
-    #if isinstance(k_cat_transport, int):
-    #    for key, value in kcat_transport_dict.items():
-    #        if value is None:
-    #            kcat_transport_dict[key] = kcat_transport_default_value
+    if not Km_Glycolysis_dict:
+        Km_Glycolysis_dict={}
+
+    if not Km_Overflow_dict:
+        Km_Overflow_dict= {}
+
+    if not Km_Respiration_dict:
+        Km_Respiration_dict={}
+
+    if remove_compartment_info:
+
+        def remove_suffix(d):
+            return {
+                re.sub(r'_[A-Za-z]$', '', key): value
+                for key, value in d.items()
+            }
+
+        Km_Biomass_dict = remove_suffix(Km_Biomass_dict)
+        Km_Glycolysis_dict = remove_suffix(Km_Glycolysis_dict)
+        Km_Overflow_dict = remove_suffix(Km_Overflow_dict)
+        Km_Respiration_dict = remove_suffix(Km_Respiration_dict)
 
 
     # EXAMPLE MODEL DEFINITION SECTION
-    toy_model_compartments = Model(
+    toy_model = Model(
         reactions={
             # Metabolic reactions
             "Glycolysis": Reaction(
@@ -112,27 +88,19 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                         "E_glyc"
                     ],  # Subunit(s) which constitute the reaction's catalyst
                     k_cat=k_cat_glycolysis,  # Turnover number in h⁻¹
-                    k_ms={  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
-                        "S": 0.0001,  # e.g., K_m of reaction Glycolysis regarding metabolite A
-                        "ADP": 0.0001,
-                        "M": 0.0001,
-                        "ATP": 0.0001,
-                    },
+                    k_ms=Km_Glycolysis_dict,  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
                     special_stoichiometries={},  # No special stoichiometry, all subunits occur once
                 ),
                 # Extra information member variables
                 annotation={"description": "This is reaction Glycolysis"},  # Default is {}
                 name="Reaction Glycolysis",  # Default is ""
             ),
-
-
-
             "Respiration": Reaction(
                 stoichiometries={
-                    "M_m": -1,
-                    "ADP_m": -4,
-                    "C_m": +1,
-                    "ATP_m": +4,
+                    "M": -1,
+                    "ADP": -4,
+                    "C": +1,
+                    "ATP": +4,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
@@ -140,12 +108,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["E_resp"],
                     k_cat=k_cat_respiration,
-                    k_ms={
-                        "ADP_m": 0.00027,
-                        "M_m": 0.00027,
-                        "C_m": 0.0001,
-                        "ATP_m": 0.0001,
-                    },
+                    k_ms=Km_Respiration_dict,
                 ),
             ),
             "Overflow": Reaction(
@@ -159,121 +122,10 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["E_over"],
                     k_cat=k_cat_overflow,
-                    k_ms={
-                        "M": 0.001,
-                        "P": 0.0001,
-                    },
+                    k_ms=Km_Overflow_dict,
                 ),
             ),
             # Exchange reactions
-            "Transport_M": Reaction(
-                stoichiometries={
-                    "M": -1,
-                    "M_m": +1
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-                dG0=-0.0,
-                enzyme_reaction_data=EnzymeReactionData(
-                    identifiers=["M_transporter"],
-                    k_cat=kcat_transport_dict["kcat_M"],
-                    k_ms=Km_C_dict
-                ),
-                
-            ),
-            "Transport_C": Reaction(
-                stoichiometries={
-                    "C_m": -1,
-                    "C": +1
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-                dG0=-0.0,
-                enzyme_reaction_data=EnzymeReactionData(
-                    identifiers=["C_transporter"],
-                    k_cat=kcat_transport_dict["kcat_C"],
-                    k_ms=Km_C_dict
-                ),
-                
-            ),
-            #
-            
-            #"Transport_ATP_ADP": Reaction(
-            #    stoichiometries={
-            #        "ATP_m": -1,
-            #        "ADP": -1,
-            #        "ADP_m": +1,
-            #        "ATP": +1
-            #    },
-            #    min_flux=1.0,
-            #    max_flux=1_000.0,
-            #),
-
-            "Transport_ATP": Reaction(
-                stoichiometries={
-                    "ATP_m": -1,
-                    "ATP": +1
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-                dG0=-0.0,
-                enzyme_reaction_data=EnzymeReactionData(
-                    identifiers=["ATP_transporter"],
-                    k_cat=kcat_transport_dict["kcat_ATP"],
-                    k_ms=Km_ATP_dict
-                ),
-                
-            ),
-
-            "Transport_ATP_back": Reaction(
-                stoichiometries={
-                    "ATP": -1,
-                    "ATP_m": +1
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-                dG0=-0.0,
-                enzyme_reaction_data=EnzymeReactionData(
-                    identifiers=["ATP_transporter"],
-                    k_cat=kcat_transport_dict["kcat_ATP"],
-                    k_ms=Km_ATP_dict
-                ),
-                
-            ),
-
-            "Transport_ADP": Reaction(
-                stoichiometries={
-                    "ADP": -1,
-                    "ADP_m": +1,
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-                dG0=-0.0,
-                enzyme_reaction_data=EnzymeReactionData(
-                    identifiers=["ADP_transporter"],
-                    k_cat=kcat_transport_dict["kcat_ADP"],
-                    k_ms=Km_ADP_dict
-                ),
-                
-            ),
-
-            "Transport_ADP_back": Reaction(
-                stoichiometries={
-                    "ADP_m": -1,
-                    "ADP": +1,
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-                dG0=-0.0,
-                enzyme_reaction_data=EnzymeReactionData(
-                    identifiers=["ADP_transporter"],
-                    k_cat=kcat_transport_dict["kcat_ADP"],
-                    k_ms=Km_ADP_dict
-                ),
-                
-            ),
-            
-
             "EX_S": Reaction(
                 stoichiometries={
                     "S": +1,
@@ -356,11 +208,6 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
             "P": Metabolite(),
             "ATP": Metabolite(),
             "ADP": Metabolite(),
-            "ATP_m": Metabolite(compartment="m"),
-            "ADP_m": Metabolite(compartment="m"),
-
-            "M_m": Metabolite(compartment="m"),
-            "C_m": Metabolite(compartment="m"),
 
             "B": Metabolite(),
         },
@@ -375,24 +222,21 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
             "E_resp": Enzyme(molecular_weight=respiration_enzyme_W),
             "E_over": Enzyme(molecular_weight=overflow_enzyme_W),
 
-            "ATP_transporter" : Enzyme(molecular_weight=ATP_transporter_enzyme_W),
-            "ADP_transporter" : Enzyme(molecular_weight=ADP_transporter_enzyme_W),
-
-            "M_transporter": Enzyme(molecular_weight=M_transporter_enzyme_W),
-            "C_transporter": Enzyme(molecular_weight=C_transporter_enzyme_W),
-
             "Biomass_enz": Enzyme(molecular_weight=biomass_enzyme_W)
 
         },
+        extra_linear_constraints = [],
+
         #comment, because we want to minimize and do not set a fixed value
         #max_prot_pool=max_prot_pool,  # In g⋅gDW⁻¹; This value is used for our analyses with enzyme constraints
+        
+        
         # We set the following two constraints:
         # 1.0 * EX_A - 1.0 * Glycolysis ≤ 0.0
         # and
         # 1.0 * EX_A + 1.0 * Glycolysis ≥ 0.0
         # in other words, effectively,
         # 1.0 * EX_A = 1.0 * Glycolysis
-        
         #extra_linear_constraints=[
         #    ExtraLinearConstraint(
         #        stoichiometries={
@@ -403,7 +247,6 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
         #        upper_value=0.0,
         #    )
         #],  # Keep in mind that this is a list as multiple extra flux constraints are possible
-        
         kinetic_ignored_metabolites=[],
         R=STANDARD_R,
         T=STANDARD_T,
@@ -411,35 +254,15 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
         annotation={"description": "COBRA-k toy model"},
     )
 
-
-    
-    #toy_model_compartments.extra_linear_constraints = [
-    #ATP_constraint,
-    #ATP_m_constraint
-    #]
-
-    toy_model_compartments.extra_linear_constraints = []
     if atp_concentration_constraint:
-        ATP_constraint = ExtraLinearConstraint(
-            stoichiometries={
-                "x_ATP": 1.0,
-                "x_ADP": -1.0,
-            },
-            lower_value=log(3.0),
-        )
-        toy_model_compartments.extra_linear_constraints.append(ATP_constraint)
+        toy_model.extra_linear_constraints = [
+            ExtraLinearConstraint(
+                stoichiometries={
+                    "x_ATP": 1.0,
+                    "x_ADP": -1.0,
+                },
+                lower_value=log(3.0),
+            )
+        ]
 
-
-    if atp_m_concentration_constraint:
-        ATP_m_constraint = ExtraLinearConstraint(
-            stoichiometries={
-                "x_ATP_m": 1.0,
-                "x_ADP_m": -1.0,
-            },
-            lower_value=log(3.0),
-        )
-        toy_model_compartments.extra_linear_constraints.append(ATP_m_constraint)
-
-
-
-    return toy_model_compartments
+    return toy_model

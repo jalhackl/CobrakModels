@@ -24,6 +24,19 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                                     biomass_enzyme_W=1500,
 
 
+                                    # dG0 values
+                                    glycolysis_dG0=-10.0,
+                                    respiration_dG0=-10.0,
+                                    overflow_dG0=-10.0,
+                                    transport_m_dG0=-0.0,
+                                    transport_c_dG0=-0.0,
+                                    transport_atp_dG0=-0.0,
+                                    transport_atp_back_dG0=-0.0,
+                                    transport_adp_dG0=-0.0,
+                                    transport_adp_back_dG0=-0.0,
+                                    transport_dg0=None,
+
+
                                     M_transporter_enzyme_W=50,
                                     C_transporter_enzyme_W=50,
                                     ATP_transporter_enzyme_W=50,
@@ -40,9 +53,21 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                                     respiration_enzyme_W=2500,
                                     overflow_enzyme_W=500,
 
-                                    biomass_dG0=0
+                                    biomass_dG0=0,
+
+                                    Km_Glycolysis_dict=None,
+                                    Km_Overflow_dict=None,
+                                    Km_Respiration_dict=None
 
                                     ):
+    
+    if transport_dg0 is not None:
+        transport_m_dG0 = transport_dg0
+        transport_c_dG0 = transport_dg0
+        transport_atp_dG0 = transport_dg0
+        transport_atp_back_dG0 = transport_dg0
+        transport_adp_dG0 = transport_dg0
+        transport_adp_back_dG0 = transport_dg0
     
     kcat_transport_default_value = 1e20
     #if isinstance(k_cat_transport, int):
@@ -72,13 +97,16 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
         Km_ADP_dict={}
 
     if not Km_Biomass_dict:
-        Km_Biomass_dict={  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
-                        "B": 0.0001,  
-                        "ADP": 0.0001,
-                        "M": 0.0001,
-                        "ATP": 0.0001,
-                    }
-        
+        Km_Biomass_dict={}
+
+    if not Km_Glycolysis_dict:
+        Km_Glycolysis_dict={}
+
+    if not Km_Overflow_dict:
+        Km_Overflow_dict= {}
+
+    if not Km_Respiration_dict:
+        Km_Respiration_dict={}
 
     #if isinstance(k_cat_transport, int):
     #    for key, value in kcat_transport_dict.items():
@@ -102,7 +130,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 max_flux=1000.0,  # Maximal flux in mmol⋅gDW⁻¹⋅h⁻¹
                 # Thermodynamically relevant member variables
                 # (only neccessary if thermodynamic constraints are used)
-                dG0=-10.0,  # Standard Gibb's free energy ΔG'° in kJ⋅mol⁻¹; Default is None (no ΔG'°)
+                dG0=glycolysis_dG0,  # Standard Gibb's free energy ΔG'° in kJ⋅mol⁻¹; Default is None (no ΔG'°)
                 dG0_uncertainty=None,  # ΔG'° uncertainty in kJ⋅mol⁻¹; Default is None (no uncertainty)
                 # Let's set the variable for enzyme-kinetic parameters
                 # of the dataclass EnzymeReactionData
@@ -112,12 +140,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                         "E_glyc"
                     ],  # Subunit(s) which constitute the reaction's catalyst
                     k_cat=k_cat_glycolysis,  # Turnover number in h⁻¹
-                    k_ms={  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
-                        "S": 0.0001,  # e.g., K_m of reaction Glycolysis regarding metabolite A
-                        "ADP": 0.0001,
-                        "M": 0.0001,
-                        "ATP": 0.0001,
-                    },
+                    k_ms=Km_Glycolysis_dict,  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
                     special_stoichiometries={},  # No special stoichiometry, all subunits occur once
                 ),
                 # Extra information member variables
@@ -136,16 +159,11 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
-                dG0=-10.0,
+                dG0=respiration_dG0,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["E_resp"],
                     k_cat=k_cat_respiration,
-                    k_ms={
-                        "ADP_m": 0.00027,
-                        "M_m": 0.00027,
-                        "C_m": 0.0001,
-                        "ATP_m": 0.0001,
-                    },
+                    k_ms=Km_Respiration_dict,
                 ),
             ),
             "Overflow": Reaction(
@@ -155,14 +173,11 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
-                dG0=-10.0,
+                dG0=overflow_dG0,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["E_over"],
                     k_cat=k_cat_overflow,
-                    k_ms={
-                        "M": 0.001,
-                        "P": 0.0001,
-                    },
+                    k_ms=Km_Overflow_dict,
                 ),
             ),
             # Exchange reactions
@@ -173,7 +188,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
-                dG0=-0.0,
+                dG0=transport_m_dG0,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["M_transporter"],
                     k_cat=kcat_transport_dict["kcat_M"],
@@ -188,7 +203,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
-                dG0=-0.0,
+                dG0=transport_c_dG0,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["C_transporter"],
                     k_cat=kcat_transport_dict["kcat_C"],
@@ -216,7 +231,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
-                dG0=-0.0,
+                dG0=transport_atp_dG0,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["ATP_transporter"],
                     k_cat=kcat_transport_dict["kcat_ATP"],
@@ -232,7 +247,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
-                dG0=-0.0,
+                dG0=transport_atp_back_dG0,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["ATP_transporter"],
                     k_cat=kcat_transport_dict["kcat_ATP"],
@@ -248,7 +263,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
-                dG0=-0.0,
+                dG0=transport_adp_dG0,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["ADP_transporter"],
                     k_cat=kcat_transport_dict["kcat_ADP"],
@@ -264,7 +279,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 },
                 min_flux=0.0,
                 max_flux=1_000.0,
-                dG0=-0.0,
+                dG0=transport_adp_back_dG0,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["ADP_transporter"],
                     k_cat=kcat_transport_dict["kcat_ADP"],
@@ -296,14 +311,14 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                 max_flux=1_000.0,
             ),
             
-            "ATP_Consumption": Reaction(
-                stoichiometries={
-                    "ATP": -1,
-                    "ADP": +1,
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-            ),
+            #"ATP_Consumption": Reaction(
+            #    stoichiometries={
+            #        "ATP": -1,
+            #        "ADP": +1,
+            #    },
+            #    min_flux=0.0,
+            #    max_flux=1_000.0,
+            #),
             
 
 
@@ -331,6 +346,7 @@ def initialize_model_w_comp(k_cat_glycolysis=140_000,
                     k_cat=k_cat_biomass,
                     k_ms=Km_Biomass_dict
                 ),
+                
             ),
 
 

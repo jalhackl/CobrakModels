@@ -1,5 +1,6 @@
 # IMPORT SECTION
 from math import log
+import re
 
 from cobrak.constants import STANDARD_R, STANDARD_T
 from cobrak.dataclasses import (
@@ -26,15 +27,39 @@ def initialize_model_wo_comp(k_cat_glycolysis=140_000,
                                     respiration_enzyme_W=2500,
                                     overflow_enzyme_W=500,
                                     
-                                    biomass_dG0=0):
-    
+                                    biomass_dG0=0,
+                                    Km_Glycolysis_dict=None,
+                                    Km_Overflow_dict=None,
+                                    Km_Respiration_dict=None,
+                                    remove_compartment_info=True):
+
     if not Km_Biomass_dict:
-        Km_Biomass_dict={  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
-                        "B": 0.0001,  
-                        "ADP": 0.0001,
-                        "M": 0.0001,
-                        "ATP": 0.0001,
-                    }
+        Km_Biomass_dict={  
+        }
+
+    if not Km_Glycolysis_dict:
+        Km_Glycolysis_dict={}
+
+    if not Km_Overflow_dict:
+        Km_Overflow_dict= {}
+
+    if not Km_Respiration_dict:
+        Km_Respiration_dict={}
+
+
+    if remove_compartment_info:
+
+        def remove_suffix(d):
+            return {
+                re.sub(r'_[A-Za-z]$', '', key): value
+                for key, value in d.items()
+            }
+
+        Km_Biomass_dict = remove_suffix(Km_Biomass_dict)
+        Km_Glycolysis_dict = remove_suffix(Km_Glycolysis_dict)
+        Km_Overflow_dict = remove_suffix(Km_Overflow_dict)
+        Km_Respiration_dict = remove_suffix(Km_Respiration_dict)
+
         
 
     # EXAMPLE MODEL DEFINITION SECTION
@@ -63,12 +88,7 @@ def initialize_model_wo_comp(k_cat_glycolysis=140_000,
                         "E_glyc"
                     ],  # Subunit(s) which constitute the reaction's catalyst
                     k_cat=k_cat_glycolysis,  # Turnover number in h⁻¹
-                    k_ms={  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
-                        "S": 0.0001,  # e.g., K_m of reaction Glycolysis regarding metabolite A
-                        "ADP": 0.0001,
-                        "M": 0.0001,
-                        "ATP": 0.0001,
-                    },
+                    k_ms=Km_Glycolysis_dict,  # Michaelis-Menten constants in M=mol⋅l⁻¹; Default is {}
                     special_stoichiometries={},  # No special stoichiometry, all subunits occur once
                 ),
                 # Extra information member variables
@@ -88,12 +108,7 @@ def initialize_model_wo_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["E_resp"],
                     k_cat=k_cat_respiration,
-                    k_ms={
-                        "ADP": 0.00027,
-                        "M": 0.00027,
-                        "C": 0.0001,
-                        "ATP": 0.0001,
-                    },
+                    k_ms=Km_Respiration_dict,
                 ),
             ),
             "Overflow": Reaction(
@@ -107,10 +122,7 @@ def initialize_model_wo_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["E_over"],
                     k_cat=k_cat_overflow,
-                    k_ms={
-                        "M": 0.001,
-                        "P": 0.0001,
-                    },
+                    k_ms=Km_Overflow_dict,
                 ),
             ),
             # Exchange reactions
@@ -147,34 +159,6 @@ def initialize_model_wo_comp(k_cat_glycolysis=140_000,
             
 
 
-            # biomass part
-            "EX_B": Reaction(
-                stoichiometries={
-                    "B": -1,
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-            ),
-
-            "Biomass_Rea": Reaction(
-                stoichiometries={
-                    "ATP": -biomass_atp,
-                    "ADP": +biomass_atp,
-                    "M": -1,
-                    "B": +1
-                },
-                min_flux=0.0,
-                max_flux=1_000.0,
-                dG0=biomass_dG0,
-                enzyme_reaction_data=EnzymeReactionData(
-                    identifiers=["Biomass_enz"],
-                    k_cat=k_cat_biomass,
-                    k_ms=Km_Biomass_dict
-                ),
-                
-            ),
-
-
         },
         metabolites={
             "S": Metabolite(
@@ -197,7 +181,6 @@ def initialize_model_wo_comp(k_cat_glycolysis=140_000,
             "ATP": Metabolite(),
             "ADP": Metabolite(),
 
-            "B": Metabolite(),
         },
         enzymes={
             "E_glyc": Enzyme(
@@ -209,8 +192,6 @@ def initialize_model_wo_comp(k_cat_glycolysis=140_000,
             ),
             "E_resp": Enzyme(molecular_weight=respiration_enzyme_W),
             "E_over": Enzyme(molecular_weight=overflow_enzyme_W),
-
-            "Biomass_enz": Enzyme(molecular_weight=biomass_enzyme_W)
 
         },
         extra_linear_constraints = [],

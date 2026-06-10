@@ -169,8 +169,9 @@ def initialize_model_wo_comp(k_cat_glycolysis=140_000,
                 enzyme_reaction_data=EnzymeReactionData(
                     identifiers=["Biomass_enz"],
                     k_cat=k_cat_biomass,
+                    k_ms=Km_Biomass_dict
                 ),
-                k_ms=Km_Biomass_dict
+                
             ),
 
 
